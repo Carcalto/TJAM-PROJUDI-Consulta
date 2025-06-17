@@ -1,0 +1,64 @@
+# Ambientes Virtuais
+venv/
+.venv/
+env/
+ENV/
+*.env
+
+# Arquivos de Bytecode e Otimização Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de Configuração com Dados Sensíveis
+# É recomendado não versionar o config.ini se ele contiver credenciais reais.
+# Se precisar de um exemplo, crie um config.ini.example e adicione config.ini ao gitignore.
+config.ini
+
+# Arquivos de IDE/Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Arquivos de Build/Distribuição
+build/
+dist/
+*.egg-info/
+*.egg
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+
+# Arquivos de Teste e Cobertura
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+nosetests.xml
+pytestdebug.log
+
+# Arquivos de Log
+*.log
+logs/
+
+# Arquivos específicos do Sistema Operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Arquivos de Bancos de Dados SQLite (se aplicável)
+*.sqlite3
+*.db3
+
+# Arquivos do Jupyter Notebook (checkpoints)
+.ipynb_checkpoints
+
+# Arquivos do MyPy (cache de tipagem)
+.mypy_cache/
+
+# Arquivos do Ruff (cache de linter)
+.ruff_cache/
