@@ -146,3 +146,37 @@ TJAM-PROJUDI-consulta/
 ---
 
 Este README visa fornecer uma visão completa do projeto, desde sua funcionalidade até os detalhes de implementação e uso.
+
+## 10. Criando um Executável
+
+É possível criar um arquivo executável independente para esta aplicação usando a ferramenta PyInstaller. Isso permite que a aplicação seja executada em máquinas Windows sem a necessidade de ter o Python ou as dependências instaladas (exceto o Google Chrome, que ainda é um pré-requisito para a funcionalidade do PROJUDI).
+
+1.  **Instale o PyInstaller:**
+    Se você seguiu os passos de instalação e instalou as dependências de `requirements.txt`, o PyInstaller já deve estar instalado. Caso contrário, instale-o no seu ambiente virtual:
+    ```bash
+    pip install pyinstaller
+    ```
+
+2.  **Gere o Executável:**
+    No terminal, na raiz do projeto (onde `main.py` está localizado), execute o seguinte comando:
+    ```bash
+    pyinstaller --onefile --windowed --name TJAM_PROJUDI_Consulta main.py
+    ```
+    *   `--onefile`: Cria um único arquivo executável.
+    *   `--windowed`: Suprime a janela do console ao executar a aplicação gráfica.
+    *   `--name TJAM_PROJUDI_Consulta`: Define o nome do arquivo executável (ex: `TJAM_PROJUDI_Consulta.exe`).
+    *   `main.py`: O script de entrada da aplicação.
+
+3.  **Localize o Executável:**
+    Após a conclusão do processo, o PyInstaller criará uma pasta chamada `dist` no diretório do seu projeto. O executável (`TJAM_PROJUDI_Consulta.exe`) estará dentro desta pasta `dist`.
+
+4.  **Observações sobre o Executável:**
+    *   O arquivo `config.ini` (se existir ou for criado pela aplicação) será lido/gravado no mesmo diretório onde o executável for executado.
+    *   O Google Chrome ainda precisa estar instalado na máquina do usuário final.
+    *   O `webdriver-manager` (usado pelo Selenium) tentará baixar o ChromeDriver apropriado em tempo de execução, o que requer acesso à internet na primeira vez ou para atualizações do driver.
+
+## 11. Autoria e Direitos
+
+Este RPA de Consulta Processual foi criado por **Celio Oliveira Carcalto**.
+
+Todos os direitos reservados.
