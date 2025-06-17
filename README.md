@@ -36,6 +36,7 @@ A principal regra de negócio é automatizar a obtenção da **data e descriçã
     *   Processos transferidos do SAJ para o PROJUDI.
     *   Processos em "Segredo de Justiça" no PROJUDI.
     *   Processos não encontrados ou sem movimentações.
+    *   **Nova Regra de Status:** Se a consulta no SAJ (TJAM) não retornar informações e a consulta subsequente no PROJUDI resultar em "Nenhum registro encontrado" ou se o processo não for listado após a busca no PROJUDI (e não for "Segredo de Justiça"), a descrição final para o processo será "Processo possivelmente com numero errado ou necessita de senha de acesso SAJ".
 *   **Feedback em Tempo Real:** Exibe o progresso da consulta e logs detalhados na interface.
 *   **Salvar Resultados:** Permite salvar os resultados consolidados (Número do Processo, Data da Última Movimentação, Descrição da Última Movimentação) em um novo arquivo Excel.
 *   **Modularidade:** Código organizado em módulos para melhor manutenção e entendimento (UI, lógica de scraping, utilitários).

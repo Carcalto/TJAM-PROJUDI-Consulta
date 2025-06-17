@@ -165,62 +165,94 @@ def get_projudi_process_movement(process_number, username, password, status_text
         except Exception: # Se o clique padrão falhar, tenta com JavaScript.
             driver.execute_script("arguments[0].click();", search_button)
         
-        # Aguarda o resultado da busca (presença do número do processo na tabela de resultados).
-        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, f"//td[normalize-space()='{process_number}']")))
-        time.sleep(2) # Pausa para os resultados carregarem completamente.
+        time.sleep(2.5) # Pausa um pouco maior para a página de resultados carregar.
 
-        # --- Etapa 4: Extração da Última Movimentação ---
-        # Verifica se o processo é "Segredo de Justiça".
+        # --- Etapa 4: Verificação de Resultados da Busca e Extração ---
+
+        # Primeiro, verifica se a busca resultou em "Nenhum registro encontrado".
+        try:
+            # Espera um pouco para o elemento aparecer, se for o caso.
+            no_records_element = WebDriverWait(driver, 5).until(
+                EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Nenhum registro encontrado')]"))
+            )
+            if no_records_element: # Se o elemento for encontrado e visível
+                status_text_widget.insert(tk.END, f"PROJUDI: Nenhum registro encontrado para o processo {process_number}.\n")
+                return "N/A", "NENHUM REGISTRO ENCONTRADO PROJUDI"
+        except TimeoutException:
+            # Se "Nenhum registro encontrado" não estiver visível após 5 segundos, continua.
+            pass
+        except NoSuchElementException:
+            # Se o elemento não existir, continua.
+            pass
+        
+        # Se não encontrou "Nenhum registro encontrado", aguarda a presença do número do processo na tabela.
+        # Isso indica que a busca retornou pelo menos um resultado válido.
+        try:
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, f"//td[normalize-space()='{process_number}']")))
+        except TimeoutException:
+            # Se o número do processo não aparecer na tabela após a busca (e não foi "Nenhum registro encontrado"),
+            # pode ser um erro inesperado, uma página diferente, ou o processo realmente não existe de forma listável.
+            status_text_widget.insert(tk.END, f"PROJUDI: Processo {process_number} não encontrado na tabela de resultados após busca (Timeout esperando link do processo).\n")
+            # Retornamos um erro genérico aqui, que será tratado no main.py
+            return "N/A", "PROJUDI: PROCESSO NÃO LISTADO APÓS BUSCA"
+
+        # Agora, verifica se o processo é "Segredo de Justiça".
+        # Esta verificação ocorre após confirmar que o processo foi listado (ou seja, não é "Nenhum registro encontrado").
         try:
             segredo_justica_element = driver.find_element(By.XPATH, "//*[contains(text(), 'Segredo de Justiça')]")
-            if segredo_justica_element: # Se o texto for encontrado.
+            # Verifica se o elemento encontrado está visível, para evitar falsos positivos de texto oculto.
+            if segredo_justica_element and segredo_justica_element.is_displayed(): 
                 status_text_widget.insert(tk.END, f"Processo {process_number} em Segredo de Justiça.\n")
                 return "", "SEGREDO DE JUSTIÇA" # Retorna indicação de segredo de justiça.
         except NoSuchElementException:
             # Se não for segredo de justiça, prossegue para clicar no processo e extrair movimentações.
-            try:
-                # Encontra e clica no link do processo na tabela de resultados.
-                process_link_td = WebDriverWait(driver, 20).until(
-                    EC.element_to_be_clickable((By.XPATH, f"//td[normalize-space()='{process_number}']"))
-                )
-                try: # O link pode estar dentro de uma tag <a> ou ser o próprio <td>.
-                    process_link = process_link_td.find_element(By.TAG_NAME, "a")
-                except NoSuchElementException:
-                    process_link = process_link_td 
-                
-                process_link.click() # Clica para abrir os detalhes do processo.
-
-                # Aguarda o carregamento da página de movimentações.
-                # O ID 'mov1Grau,SERVIDOR,,SEMARQUIVO,,' parece ser um identificador de linha de movimentação.
-                last_mov_row_id = "mov1Grau,SERVIDOR,,SEMARQUIVO,," 
-                
-                WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, last_mov_row_id)))
-                last_mov_row = driver.find_element(By.ID, last_mov_row_id) # Obtém a linha da última movimentação.
-                
-                # Extrai a data/hora da terceira célula (td[3]) da linha.
-                date_time_element = last_mov_row.find_element(By.XPATH, ".//td[3]") 
-                full_date_time_text = date_time_element.text.strip().replace('\n', ' ') # Limpa o texto.
-                # Extrai apenas a parte da data (DD/MM/AAAA).
-                date_part = full_date_time_text.split(" ")[0] if " " in full_date_time_text else full_date_time_text
-
-                # Extrai a descrição da movimentação da quarta célula (td[4]), dentro de uma tag <b>.
-                dizeres_element = last_mov_row.find_element(By.XPATH, ".//td[4]/b") 
-                raw_dizeres_text = dizeres_element.text.strip()
-                # Limpa a descrição, removendo espaços extras e quebras de linha.
-                dizeres_text = re.sub(r'\s+', ' ', raw_dizeres_text).strip()
-                
-                status_text_widget.insert(tk.END, f"Última movimentação para {process_number}: {date_part} - {dizeres_text}\n")
-                return date_part, dizeres_text # Retorna a data e a descrição limpas.
-
-            except TimeoutException:
-                status_text_widget.insert(tk.END, f"Timeout ao tentar acessar ou extrair movimentação do processo {process_number}.\n")
-                return "Erro PROJUDI (Timeout Mov)", "Erro PROJUDI (Timeout Mov)"
+            pass # Continua para a tentativa de extração normal.
+            
+        # Se não for "Nenhum registro encontrado" nem "Segredo de Justiça", tenta extrair a movimentação.
+        # Isso implica que o link do processo (com o número do processo) foi encontrado.
+        try:
+            # Encontra e clica no link do processo na tabela de resultados.
+            process_link_td = WebDriverWait(driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, f"//td[normalize-space()='{process_number}']"))
+            )
+            try: # O link pode estar dentro de uma tag <a> ou ser o próprio <td>.
+                process_link = process_link_td.find_element(By.TAG_NAME, "a")
             except NoSuchElementException:
-                status_text_widget.insert(tk.END, f"Elemento da movimentação não encontrado para {process_number}.\n")
-                return "Erro PROJUDI (Elemento Mov N/E)", "Erro PROJUDI (Elemento Mov N/E)"
-            except Exception as e_mov:
-                status_text_widget.insert(tk.END, f"Erro inesperado ao processar movimentação de {process_number}: {e_mov}\n")
-                return "Erro PROJUDI (Movimentação)", "Erro PROJUDI (Movimentação)"
+                process_link = process_link_td 
+            
+            process_link.click() # Clica para abrir os detalhes do processo.
+
+            # Aguarda o carregamento da página de movimentações.
+            # O ID 'mov1Grau,SERVIDOR,,SEMARQUIVO,,' parece ser um identificador de linha de movimentação.
+            last_mov_row_id = "mov1Grau,SERVIDOR,,SEMARQUIVO,," 
+            
+            WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, last_mov_row_id)))
+            last_mov_row = driver.find_element(By.ID, last_mov_row_id) # Obtém a linha da última movimentação.
+            
+            # Extrai a data/hora da terceira célula (td[3]) da linha.
+            date_time_element = last_mov_row.find_element(By.XPATH, ".//td[3]") 
+            full_date_time_text = date_time_element.text.strip().replace('\n', ' ') # Limpa o texto.
+            # Extrai apenas a parte da data (DD/MM/AAAA).
+            date_part = full_date_time_text.split(" ")[0] if " " in full_date_time_text else full_date_time_text
+
+            # Extrai a descrição da movimentação da quarta célula (td[4]), dentro de uma tag <b>.
+            dizeres_element = last_mov_row.find_element(By.XPATH, ".//td[4]/b") 
+            raw_dizeres_text = dizeres_element.text.strip()
+            # Limpa a descrição, removendo espaços extras e quebras de linha.
+            dizeres_text = re.sub(r'\s+', ' ', raw_dizeres_text).strip()
+            
+            status_text_widget.insert(tk.END, f"Última movimentação para {process_number}: {date_part} - {dizeres_text}\n")
+            return date_part, dizeres_text # Retorna a data e a descrição limpas.
+
+        except TimeoutException:
+            status_text_widget.insert(tk.END, f"Timeout ao tentar acessar ou extrair movimentação do processo {process_number}.\n")
+            return "Erro PROJUDI (Timeout Mov)", "Erro PROJUDI (Timeout Mov)"
+        except NoSuchElementException:
+            status_text_widget.insert(tk.END, f"Elemento da movimentação não encontrado para {process_number}.\n")
+            return "Erro PROJUDI (Elemento Mov N/E)", "Erro PROJUDI (Elemento Mov N/E)"
+        except Exception as e_mov:
+            status_text_widget.insert(tk.END, f"Erro inesperado ao processar movimentação de {process_number}: {e_mov}\n")
+            return "Erro PROJUDI (Movimentação)", "Erro PROJUDI (Movimentação)"
         
         # Se chegou aqui, algo não previsto ocorreu após a busca (nem segredo de justiça, nem link clicável).
         status_text_widget.insert(tk.END, f"Não foi possível determinar o estado do processo {process_number} após a busca.\n")

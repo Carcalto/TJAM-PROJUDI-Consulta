@@ -35,6 +35,25 @@ def get_tjam_process_movement(process_number, status_text_widget, projudi_userna
         # Parseia o conteúdo HTML da página de resposta.
         soup = BeautifulSoup(response.text, 'html.parser')
 
+        # Verifica se existe o pop-up de "SENHA DO PROCESSO"
+        # O título do pop-up é "SENHA DO PROCESSO" e contém o texto "Atendendo a resolução 121 do CNJ."
+        # Podemos procurar por um elemento que contenha um desses textos.
+        # Um seletor comum para o título de dialogs/modals pode ser um h1, h2, h3, ou um span com uma classe específica.
+        # Vamos procurar por um texto mais genérico que provavelmente estará presente.
+        # A imagem mostra "SENHA DO PROCESSO" como um título destacado.
+        # E o texto "Atendendo a resolução 121 do CNJ."
+        # Vamos procurar por um elemento que contenha "SENHA DO PROCESSO" ou "resolução 121 do CNJ"
+        
+        # Tentativa de encontrar o modal de senha. O modal pode ter um ID ou classe específica,
+        # mas como não temos o HTML exato, vamos procurar por texto característico.
+        # O texto "SENHA DO PROCESSO" parece ser um bom indicador.
+        # Outro texto é "Atendendo a resolução 121 do CNJ."
+        # E também "Se for uma parte ou interessado, digite a senha do processo"
+        
+        # Vamos procurar por um elemento que contenha o texto "SENHA DO PROCESSO"
+        # ou "Digite a senha do processo" que é bem específico do modal.
+        # Usar soup.find(text=re.compile(...)) pode ser útil.
+        
         # Tenta encontrar a tabela de movimentações pelo ID 'tabelaTodasMovimentacoes'.
         movements_table = soup.find('table', {'id': 'tabelaTodasMovimentacoes'})
         if not movements_table:

@@ -97,7 +97,43 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
             # Realiza a consulta da movimentação do processo.
             # Esta função tentará o TJAM primeiro e, se necessário, o PROJUDI.
             date, description = get_tjam_process_movement(process_number, status_text_widget, username, password)
+
+            # Lista de descrições que indicam falha ou ausência de dados concretos,
+            # excluindo "SEGREDO DE JUSTIÇA" que é um estado válido.
+            failure_indicators_date = ["N/A", "DATA NÃO ENCONTRADA"] # Convertido para upper para comparação
+            failure_indicators_desc = [
+                "N/A", "DESCRIÇÃO NÃO ENCONTRADA",
+                "ERRO PROJUDI (LOGIN FALHOU)", "ERRO PROJUDI (USERMAINFRAME)",
+                "ERRO PROJUDI (PREENCHIMENTO)", "ERRO PROJUDI (TIMEOUT MOV)",
+                "ERRO PROJUDI (ELEMENTO MOV N/E)", "ERRO PROJUDI (MOVIMENTAÇÃO)",
+                "N/A (PÓS-BUSCA INDEFINIDO)", "ERRO PROJUDI (TIMEOUT GERAL)",
+                "ERRO PROJUDI (ELEMENTO GERAL N/E)", "ERRO PROJUDI (GERAL)",
+                "NENHUM REGISTRO ENCONTRADO PROJUDI", # Adicionado
+                "PROJUDI: PROCESSO NÃO LISTADO APÓS BUSCA" # Adicionado
+            ] # Convertido para upper para comparação
+
+            # Normaliza para maiúsculas para comparação case-insensitive
+            current_date_upper = str(date).upper()
+            current_description_upper = str(description).upper()
+
+            # Verifica se o resultado indica uma falha genérica e não é "SEGREDO DE JUSTIÇA"
+            is_failure = (current_date_upper in failure_indicators_date or
+                          current_description_upper in failure_indicators_desc)
             
+            is_segredo = (current_description_upper == "SEGREDO DE JUSTIÇA")
+
+            if is_failure and not is_segredo:
+                description = "Processo possivelmente com numero errado ou necessita de senha de acesso SAJ"
+                # Mantém a data como "N/A" ou o que foi retornado se for um erro
+                if current_date_upper in failure_indicators_date or date is None: # Se a data já era um indicador de falha
+                    date = "N/A" 
+                # Se a data era válida mas a descrição falhou, a data pode ser mantida ou setada para N/A.
+                # Para consistência com a mensagem de erro, setar para N/A parece razoável.
+                # No entanto, a instrução era apenas mudar a descrição. Vamos manter a data original por enquanto,
+                # a menos que ela mesma seja um indicador de falha.
+                # Se a data for válida, mas a descrição for um erro, a data original será mantida.
+                # Se a data também for um erro, será "N/A".
+
             # Exibe o resultado da consulta no widget de status.
             status_text_widget.insert(tk.END, f"  Resultado para {process_number}: Data: {str(date)}, Movimentação: {str(description)}\n")
             status_text_widget.insert(tk.END, "\n") # Linha em branco para separação visual.
