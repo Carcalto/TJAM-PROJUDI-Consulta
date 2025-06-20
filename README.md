@@ -23,6 +23,24 @@ A principal regra de negócio é automatizar a obtenção da **data e descriçã
     *   Identifica processos marcados como "Segredo de Justiça", retornando essa informação.
 4.  **Consolidação e Saída:** Os resultados (data e descrição da última movimentação, ou indicações de erro/segredo de justiça) são coletados para todos os processos e podem ser salvos em um novo arquivo Excel.
 
+### Fluxograma do Processo
+
+```mermaid
+graph TD
+    A[Entrada: Arquivo Excel com<br>números dos processos] --> B{Interface Gráfica (Tkinter)};
+    B --> C{Início da Consulta};
+    C --> D[Leitura dos Processos do Excel];
+    D --> E{Loop por cada processo};
+    E --> F[Consulta TJAM/SAJ (requests)];
+    F -- Processo não encontrado/erro --> G[Consulta PROJUDI (selenium)];
+    F -- Processo encontrado --> H[Extração de Dados (BeautifulSoup)];
+    G --> H;
+    H --> I[Estruturação dos Resultados (pandas)];
+    I --> E;
+    E -- Fim do Loop --> J[Salvar Resultados Consolidados];
+    J --> K[Saída: Novo Arquivo Excel];
+```
+
 ## 3. Funcionalidades
 
 *   **Interface Gráfica (GUI):** Construída com Tkinter para facilitar a interação do usuário.
