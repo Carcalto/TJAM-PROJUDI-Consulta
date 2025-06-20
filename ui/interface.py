@@ -80,9 +80,19 @@ class AppUI:
         
         cred_frame.columnconfigure(1, weight=1) # Permite que a coluna dos campos de entrada expanda com a janela.
 
+        # --- Checkbox para Mostrar/Ocultar Senha ---
+        self.show_password_var = tk.BooleanVar()
+        self.show_password_check = ttk.Checkbutton(
+            cred_frame,
+            text="Mostrar Senha",
+            variable=self.show_password_var,
+            command=self._toggle_password_visibility
+        )
+        self.show_password_check.grid(row=2, column=1, padx=5, pady=2, sticky="e")
+
         # Botão para salvar as credenciais inseridas.
         self.save_cred_button = ttk.Button(cred_frame, text="Salvar Credenciais", command=self._trigger_save_credentials)
-        self.save_cred_button.grid(row=2, column=0, columnspan=2, pady=5)
+        self.save_cred_button.grid(row=3, column=0, columnspan=2, pady=5)
 
         # --- Frame de Ações (Iniciar/Resetar Consulta) ---
         action_frame = ttk.Frame(self.root) # Frame simples para agrupar botões de ação.
@@ -120,6 +130,15 @@ class AppUI:
             self.username_entry.insert(0, username)
         if password:
             self.password_entry.insert(0, password)
+
+    def _toggle_password_visibility(self):
+        """
+        Alterna a visibilidade do campo de senha com base no estado do checkbox.
+        """
+        if self.show_password_var.get():
+            self.password_entry.config(show="")
+        else:
+            self.password_entry.config(show="*")
 
     def _trigger_load_excel(self):
         """

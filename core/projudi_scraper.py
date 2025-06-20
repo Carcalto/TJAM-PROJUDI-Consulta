@@ -35,7 +35,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
     # Verifica se as credenciais foram fornecidas.
     if not username or not password:
         status_text_widget.insert(tk.END, "Credenciais do PROJUDI não fornecidas para a consulta.\n")
-        return "N/A", "N/A"
+        return "N/A", "Credenciais do PROJUDI não fornecidas para a consulta."
 
     driver = None # Inicializa a variável do driver do Selenium.
     try:
@@ -108,7 +108,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
                     continue # Se o XPath não for encontrado, tenta o próximo.
             
             if error_found:
-                return "Erro PROJUDI (Login Falhou)", "Credenciais inválidas ou problema no login."
+                return "N/A", "Credenciais inválidas ou problema no login."
 
         except Exception as e_login_check:
             # Se a verificação de erro de login em si falhar, apenas loga um aviso.
@@ -177,7 +177,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
             )
             if no_records_element: # Se o elemento for encontrado e visível
                 status_text_widget.insert(tk.END, f"PROJUDI: Nenhum registro encontrado para o processo {process_number}.\n")
-                return "N/A", "NENHUM REGISTRO ENCONTRADO PROJUDI"
+                return "N/A", "NENHUM REGISTRO ENCONTRADO OU NÚMERO DE PROCESSO INVÁLIDO"
         except TimeoutException:
             # Se "Nenhum registro encontrado" não estiver visível após 5 segundos, continua.
             pass
@@ -203,7 +203,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
             # Verifica se o elemento encontrado está visível, para evitar falsos positivos de texto oculto.
             if segredo_justica_element and segredo_justica_element.is_displayed(): 
                 status_text_widget.insert(tk.END, f"Processo {process_number} em Segredo de Justiça.\n")
-                return "", "SEGREDO DE JUSTIÇA" # Retorna indicação de segredo de justiça.
+                return "N/A", "SEGREDO DE JUSTIÇA" # Retorna indicação de segredo de justiça.
         except NoSuchElementException:
             # Se não for segredo de justiça, prossegue para clicar no processo e extrair movimentações.
             pass # Continua para a tentativa de extração normal.

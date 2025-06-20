@@ -108,8 +108,8 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
                 "ERRO PROJUDI (ELEMENTO MOV N/E)", "ERRO PROJUDI (MOVIMENTAÇÃO)",
                 "N/A (PÓS-BUSCA INDEFINIDO)", "ERRO PROJUDI (TIMEOUT GERAL)",
                 "ERRO PROJUDI (ELEMENTO GERAL N/E)", "ERRO PROJUDI (GERAL)",
-                "NENHUM REGISTRO ENCONTRADO PROJUDI", # Adicionado
-                "PROJUDI: PROCESSO NÃO LISTADO APÓS BUSCA" # Adicionado
+                "NENHUM REGISTRO ENCONTRADO OU NÚMERO DE PROCESSO INVÁLIDO",
+                "PROJUDI: PROCESSO NÃO LISTADO APÓS BUSCA"
             ] # Convertido para upper para comparação
 
             # Normaliza para maiúsculas para comparação case-insensitive
@@ -122,20 +122,15 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
             
             is_segredo = (current_description_upper == "SEGREDO DE JUSTIÇA")
 
-            if is_failure and not is_segredo:
-                description = "Processo possivelmente com numero errado ou necessita de senha de acesso SAJ"
-                # Mantém a data como "N/A" ou o que foi retornado se for um erro
-                if current_date_upper in failure_indicators_date or date is None: # Se a data já era um indicador de falha
-                    date = "N/A" 
-                # Se a data era válida mas a descrição falhou, a data pode ser mantida ou setada para N/A.
-                # Para consistência com a mensagem de erro, setar para N/A parece razoável.
-                # No entanto, a instrução era apenas mudar a descrição. Vamos manter a data original por enquanto,
-                # a menos que ela mesma seja um indicador de falha.
-                # Se a data for válida, mas a descrição for um erro, a data original será mantida.
-                # Se a data também for um erro, será "N/A".
-
             # Exibe o resultado da consulta no widget de status.
-            status_text_widget.insert(tk.END, f"  Resultado para {process_number}: Data: {str(date)}, Movimentação: {str(description)}\n")
+            credential_error_messages = [
+                "Credenciais do PROJUDI não fornecidas para a consulta.",
+                "Credenciais inválidas ou problema no login."
+            ]
+            if description in credential_error_messages:
+                status_text_widget.insert(tk.END, f"  Resultado para {process_number}: Data: {str(date)}, {str(description)}\n")
+            else:
+                status_text_widget.insert(tk.END, f"  Resultado para {process_number}: Data: {str(date)}, Movimentação: {str(description)}\n")
             status_text_widget.insert(tk.END, "\n") # Linha em branco para separação visual.
             status_text_widget.insert(tk.END, "----------------------------------------------------------------------\n") # Linha tracejada para separação.
             status_text_widget.see(tk.END)
