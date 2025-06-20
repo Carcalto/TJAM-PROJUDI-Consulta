@@ -28,18 +28,18 @@ Abaixo, um fluxograma que representa visualmente o pipeline de dados da aplicaç
 
 ```mermaid
 graph TD
-    A[Entrada: Arquivo Excel com<br>números dos processos] --> B{Interface Gráfica (Tkinter)};
-    B --> C{Início da Consulta};
-    C --> D[Leitura dos Processos do Excel];
-    D --> E{Loop por cada processo};
-    E --> F[Consulta TJAM/SAJ (requests)];
-    F -- Processo não encontrado/erro --> G[Consulta PROJUDI (selenium)];
-    F -- Processo encontrado --> H[Extração de Dados (BeautifulSoup)];
-    G --> H;
-    H --> I[Estruturação dos Resultados (pandas)];
-    I --> E;
-    E -- Fim do Loop --> J[Salvar Resultados Consolidados];
-    J --> K[Saída: Novo Arquivo Excel];
+    A[Entrada: Arquivo Excel com<br>números dos processos] --> B{Interface Gráfica (Tkinter)}
+    B --> C{Início da Consulta}
+    C --> D[Leitura dos Processos do Excel]
+    D --> E{Loop por cada processo}
+    E --> F[Consulta TJAM/SAJ (requests)]
+    F -- Processo não encontrado/erro --> G[Consulta PROJUDI (selenium)]
+    F -- Processo encontrado --> H[Extração de Dados (BeautifulSoup)]
+    G --> H
+    H --> I[Estruturação dos Resultados (pandas)]
+    I --> E
+    E -- Fim do Loop --> J[Salvar Resultados Consolidados]
+    J --> K[Saída: Novo Arquivo Excel]
 ```
 
 ## 3. Principais Descobertas (Gráficos/Insights)
