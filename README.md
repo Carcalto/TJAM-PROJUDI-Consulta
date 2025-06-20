@@ -175,9 +175,3 @@ Este README visa fornecer uma visão completa do projeto, desde sua funcionalida
     *   O arquivo `config.ini` (se existir ou for criado pela aplicação) será lido/gravado no mesmo diretório onde o executável for executado.
     *   O Google Chrome ainda precisa estar instalado na máquina do usuário final.
     *   O `webdriver-manager` (usado pelo Selenium) tentará baixar o ChromeDriver apropriado em tempo de execução, o que requer acesso à internet na primeira vez ou para atualizações do driver.
-
-## 11. Autoria e Direitos
-
-Este RPA de Consulta Processual foi criado por **Celio Oliveira Carcalto**.
-
-Todos os direitos reservados.
