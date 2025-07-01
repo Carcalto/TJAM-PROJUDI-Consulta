@@ -65,6 +65,11 @@ class AppUI:
         self.load_button = ttk.Button(file_frame, text="Carregar Processos", command=self._trigger_load_excel)
         self.load_button.pack(side="left", padx=5, pady=5)
 
+        # OBS para o usuário sobre o arquivo Excel e credenciais
+        obs_text = "OBS: O arquivo Excel a ser carregado para consulta, é OBRIGATÓRIO conter uma coluna 'PROCESSO'. As credenciais PROJUDI não são obrigatórias, mas inviabilizam a consulta PROJUDI se não fornecidas. Ao final da consulta, você deverá salvar os resultados em um arquivo Excel no seu computador, que conterá as colunas 'PROCESSO', 'DATA_ULTIMA_MOVIMENTACAO' e 'DESCRICAO_ULTIMA_MOVIMENTACAO'."
+        self.obs_label = ttk.Label(self.root, text=obs_text, foreground="blue", wraplength=580)
+        self.obs_label.pack(pady=5, padx=10, fill="x")
+
         # --- Frame de Credenciais do PROJUDI ---
         cred_frame = ttk.LabelFrame(self.root, text="Credenciais PROJUDI")
         cred_frame.pack(pady=5, padx=10, fill="x")
