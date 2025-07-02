@@ -48,16 +48,17 @@ graph TD;
 *   **Consulta Automatizada:** Realiza o web scraping nos portais SAJ e PROJUDI.
 *   **Gerenciamento de Credenciais PROJUDI:**
     *   Permite ao usuário salvar suas credenciais do PROJUDI através da interface.
-    *   As credenciais são armazenadas localmente no arquivo `config.ini`.
-    *   As credenciais salvas são carregadas automaticamente ao iniciar a aplicação.
+    *   **Melhoria de Segurança:** As credenciais agora são preferencialmente armazenadas de forma segura usando o serviço `keyring` do sistema operacional. Caso o `keyring` não esteja disponível ou configurado, elas serão salvas no arquivo `config.ini` (com um aviso de segurança).
+    *   As credenciais salvas são carregadas automaticamente ao iniciar a aplicação, tentando primeiro o `keyring`.
 *   **Tratamento de Casos Específicos:**
     *   Processos transferidos do SAJ para o PROJUDI.
     *   Processos em "Segredo de Justiça" no PROJUDI.
     *   Processos não encontrados ou sem movimentações.
     *   **Nova Regra de Status:** Se a consulta no SAJ (TJAM) não retornar informações e a consulta subsequente no PROJUDI resultar em "Nenhum registro encontrado" ou se o processo não for listado após a busca no PROJUDI (e não for "Segredo de Justiça"), a descrição final para o processo será "Processo possivelmente com numero errado ou necessita de senha de acesso SAJ".
-*   **Feedback em Tempo Real:** Exibe o progresso da consulta e logs detalhados na interface.
+*   **Feedback em Tempo Real (Logging):** O progresso da consulta e logs detalhados agora são exibidos em uma área de log na interface, utilizando o módulo `logging` padrão do Python, o que melhora a rastreabilidade e o desacoplamento.
 *   **Salvar Resultados:** Permite salvar os resultados consolidados (Número do Processo, Data da Última Movimentação, Descrição da Última Movimentação) em um novo arquivo Excel.
-*   **Modularidade:** Código organizado em módulos para melhor manutenção e entendimento (UI, lógica de scraping, utilitários).
+*   **Modularidade Aprimorada:** O código foi refatorado para maior desacoplamento entre módulos (UI, lógica de negócio, scraping, utilitários) e centralização de constantes em `utils/constants.py`, melhorando a manutenibilidade e escalabilidade.
+
 
 ## 4. Estrutura do Projeto
 
@@ -72,9 +73,10 @@ TJAM-PROJUDI-consulta/
 │   ├── tjam_scraper.py     # Lógica de scraping para o portal SAJ do TJAM.
 │   └── projudi_scraper.py  # Lógica de scraping para o portal PROJUDI (usando Selenium).
 ├── utils/
-│   ├── config_manager.py   # Gerencia o carregamento e salvamento de credenciais (config.ini).
-│   └── excel_handler.py    # Lida com a leitura e escrita de arquivos Excel.
-├── config.ini              # Arquivo para armazenar as credenciais do PROJUDI (criado após salvar pela UI).
+│   ├── config_manager.py   # Gerencia o carregamento e salvamento de credenciais (prioriza `keyring`, fallback para `config.ini`).
+│   ├── excel_handler.py    # Lida com a leitura e escrita de arquivos Excel.
+│   └── constants.py        # Novo módulo que centraliza strings e constantes para maior legibilidade e manutenção.
+├── config.ini              # (Opcional) Arquivo para armazenar as credenciais do PROJUDI (agora um fallback para `keyring`).
 ├── requirements.txt        # Lista de dependências Python do projeto.
 └── README.md               # Este arquivo.
 ```
@@ -94,8 +96,8 @@ TJAM-PROJUDI-consulta/
 2.  **Crie e Ative um Ambiente Virtual (Recomendado):**
     ```bash
     python -m venv venv
-    # No Windows:
-    venv\Scripts\activate
+    # No Windows (PowerShell):
+    .\venv\Scripts\activate
     # No Linux/macOS:
     source venv/bin/activate
     ```
@@ -105,16 +107,10 @@ TJAM-PROJUDI-consulta/
     ```bash
     pip install -r requirements.txt
     ```
-    Isso instalará todas as bibliotecas necessárias, como `requests`, `beautifulsoup4`, `pandas`, `selenium`, `webdriver-manager`, e `openpyxl`.
+    Isso instalará todas as bibliotecas necessárias, incluindo `keyring` (nova dependência), `requests`, `beautifulsoup4`, `pandas`, `selenium`, `webdriver-manager`, e `openpyxl`.
 
-4.  **Credenciais do PROJUDI (Opcional nesta etapa):**
-    *   As credenciais podem ser inseridas e salvas diretamente através da interface gráfica da aplicação na primeira vez que for utilizada.
-    *   Se preferir, você pode criar manualmente um arquivo `config.ini` na raiz do projeto com o seguinte formato:
-        ```ini
-        [PROJUDI]
-        username = seu_usuario_projudi
-        password = sua_senha_projudi
-        ```
+4.  **Credenciais do PROJUDI (Via Interface):**
+    *   As credenciais **devem ser inseridas e salvas pela primeira vez através da interface gráfica da aplicação**. Elas serão armazenadas de forma segura (via `keyring`) ou, como fallback, em `config.ini`. **Não é mais recomendado criar `config.ini` manualmente com senhas em texto plano.**
 
 ## 7. Como Usar
 
@@ -131,7 +127,7 @@ TJAM-PROJUDI-consulta/
 
 3.  **Credenciais do PROJUDI (Se necessário):**
     *   Se você ainda não salvou suas credenciais do PROJUDI, insira seu nome de usuário e senha nos campos apropriados na seção "Credenciais PROJUDI".
-    *   Clique em "**Salvar Credenciais**". Uma mensagem confirmará o salvamento. As credenciais ficarão armazenadas no arquivo `config.ini` para usos futuros.
+    *   Clique em "**Salvar Credenciais**". Uma mensagem ou log confirmará o salvamento.
 
 4.  **Inicie a Consulta:**
     *   Após carregar o arquivo Excel e (se necessário) configurar as credenciais, o botão "**Iniciar Consulta**" será habilitado.
@@ -151,14 +147,16 @@ TJAM-PROJUDI-consulta/
 *   **Consulta SAJ (TJAM):** Realizada com as bibliotecas `requests` (para requisições HTTP) e `BeautifulSoup4` (para parsing de HTML).
 *   **Consulta PROJUDI:** Realizada com `Selenium` (para automação de navegador) e `webdriver-manager` (para gerenciamento automático do ChromeDriver). O Google Chrome é controlado em modo headless (sem interface visível).
 *   **Manipulação de Excel:** Realizada com a biblioteca `Pandas`.
-*   **Gerenciamento de Configuração:** Utiliza o módulo `configparser` para ler e escrever o arquivo `config.ini`.
+*   **Gerenciamento de Credenciais:** Agora utiliza a biblioteca `keyring` para armazenamento seguro no sistema operacional, com `configparser` como um fallback menos seguro.
+*   **Sistema de Logging:** Implementado um sistema de logging robusto com o módulo `logging` do Python, exibindo feedback detalhado na interface do usuário (UI).
+*   **Modularidade Aprimorada:** O código foi refatorado para maior desacoplamento entre módulos (UI, lógica de negócio, scraping, utilitários) e centralização de constantes em `utils/constants.py`, melhorando a manutenibilidade e escalabilidade.
 *   **Threading:** As operações de carregamento de arquivo e consulta principal são executadas em threads separadas para manter a interface gráfica responsiva.
 
 ## 9. Observações e Limitações
 
 *   **Fragilidade do Web Scraping:** A automação depende da estrutura atual dos portais SAJ e PROJUDI. Mudanças no layout ou HTML desses sites podem quebrar a funcionalidade de scraping, exigindo atualizações no código.
 *   **ChromeDriver:** O `webdriver-manager` tenta manter o ChromeDriver compatível com a versão instalada do Google Chrome. No entanto, em raras ocasiões, podem ocorrer incompatibilidades que exigem intervenção manual ou atualização do `webdriver-manager`.
-*   **Segurança das Credenciais:** As credenciais do PROJUDI são salvas em texto plano no arquivo `config.ini` localmente na máquina do usuário. Embora isso seja conveniente para uso pessoal, não é recomendado para ambientes compartilhados ou se houver preocupações de segurança elevadas.
+*   **Segurança das Credenciais (Refinada):** Embora o uso de `keyring` aumente significativamente a segurança das credenciais, é fundamental que o usuário esteja ciente de que, se o `keyring` não estiver operacional em seu ambiente, as credenciais podem ser salvas em `config.ini` (texto plano). Para ambientes compartilhados ou de alta segurança, a verificação da operacionalidade do `keyring` e a não-persistência em `config.ini` podem ser desejáveis.
 *   **Captcha e Mecanismos Anti-Robô:** Atualmente, os portais não implementam (ou não de forma impeditiva para este script) mecanismos complexos de captcha para as consultas realizadas. Se isso mudar, a automação pode ser significativamente dificultada.
 *   **Volume de Consultas:** Consultas excessivas em um curto período podem levar a bloqueios temporários de IP pelos portais. O script não implementa, por padrão, controle de taxa de requisições sofisticado.
 
@@ -193,3 +191,4 @@ Este README visa fornecer uma visão completa do projeto, desde sua funcionalida
     *   O arquivo `config.ini` (se existir ou for criado pela aplicação) será lido/gravado no mesmo diretório onde o executável for executado.
     *   O Google Chrome ainda precisa estar instalado na máquina do usuário final.
     *   O `webdriver-manager` (usado pelo Selenium) tentará baixar o ChromeDriver apropriado em tempo de execução, o que requer acesso à internet na primeira vez ou para atualizações do driver.
+    *   Para o gerenciamento seguro de credenciais via `keyring`, pode ser necessária alguma configuração inicial dependendo do sistema operacional. Consulte a documentação do `keyring` para detalhes.

@@ -2,7 +2,8 @@
 # como ler números de processo de uma planilha e salvar os resultados da consulta
 # em uma nova planilha.
 import pandas as pd # Biblioteca para manipulação e análise de dados, usada para ler/escrever Excel.
-from tkinter import filedialog, messagebox # Para caixas de diálogo de seleção/salvamento de arquivo e mensagens.
+from tkinter import filedialog # Para caixas de diálogo de seleção/salvamento de arquivo. MessageBox será substituído por logging.
+import logging # Adicionar import de logging
 
 def is_valid_process_number(process_number):
     """
@@ -40,7 +41,7 @@ def read_process_numbers_from_excel(file_path):
         elif "processo" in df.columns:
             process_column = "processo"
         else:
-            messagebox.showerror("Erro de Leitura", "O arquivo Excel deve conter uma coluna chamada 'PROCESSO' ou 'processo'.")
+            logging.error("O arquivo Excel deve conter uma coluna chamada 'PROCESSO' ou 'processo'.")
             return None, None
         
         # Converter todos os números para string e validar
@@ -55,23 +56,23 @@ def read_process_numbers_from_excel(file_path):
                 invalid_numbers.append(num)
                 
         if invalid_numbers:
-            messagebox.showwarning("Atenção", f"Foram encontrados {len(invalid_numbers)} números de processo inválidos. "
+            logging.warning(f"Foram encontrados {len(invalid_numbers)} números de processo inválidos. "
                                    f"Eles serão incluídos no resultado final como 'NÚMERO DE PROCESSO INVÁLIDO'.")
                 
         return valid_numbers, invalid_numbers
     except Exception as e:
-        messagebox.showerror("Erro de Leitura", f"Ocorreu um erro ao ler o arquivo Excel: {e}")
+        logging.error(f"Ocorreu um erro ao ler o arquivo Excel: {e}", exc_info=True)
         return None, None
-
+ 
 def save_results_to_excel(results_list, default_filename="resultados_consulta.xlsx"):
     """
     Salva uma lista de dicionários (resultados) em um arquivo Excel.
     Retorna o caminho do arquivo salvo ou None se o salvamento for cancelado.
     """
     if not results_list: # Se a lista de resultados estiver vazia.
-        messagebox.showinfo("Sem Resultados", "Não há resultados para salvar.")
+        logging.info("Não há resultados para salvar.")
         return None
-
+ 
     # Cria um DataFrame do Pandas a partir da lista de dicionários.
     output_df = pd.DataFrame(results_list)
     
@@ -86,11 +87,12 @@ def save_results_to_excel(results_list, default_filename="resultados_consulta.xl
         try:
             # Salva o DataFrame no arquivo Excel especificado, sem incluir o índice do DataFrame.
             output_df.to_excel(output_file_path, index=False)
-            messagebox.showinfo("Concluído", f"Resultados salvos em:\n{output_file_path}")
+            logging.info(f"Resultados salvos em:\n{output_file_path}")
             return output_file_path # Retorna o caminho do arquivo salvo.
         except Exception as e:
-            messagebox.showerror("Erro ao Salvar", f"Não foi possível salvar o arquivo Excel: {e}")
+            logging.error(f"Não foi possível salvar o arquivo Excel: %s", e, exc_info=True)
             return None # Retorna None em caso de erro ao salvar.
     else:
         # Se o usuário cancelou a caixa de diálogo de salvamento.
+        logging.info("Salvamento do arquivo de resultados cancelado.")
         return None

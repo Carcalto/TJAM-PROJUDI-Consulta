@@ -1,4 +1,4 @@
-import tkinter as tk
+import logging 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
@@ -11,7 +11,23 @@ import time
 import os
 import re
 
-def get_projudi_process_movement(process_number, username, password, status_text_widget):
+# Importar constantes
+from utils.constants import (
+    STATUS_NAO_DISPONIVEL, STATUS_SEGREDO_JUSTICA, STATUS_MOVIMENTACAO_NAO_ENCONTRADA,
+    PROJUDI_ERRO_CREDENCIAIS_NAO_FORNECIDAS, PROJUDI_ERRO_CREDENCIAIS_INVALIDAS,
+    PROJUDI_ERRO_USERMAINFRAME, PROJUDI_ERRO_PREENCHIMENTO, PROJUDI_PROCESS_NAO_ENCONTRADO,
+    PROJUDI_PROCESS_NAO_LISTADO_POS_BUSCA, PROJUDI_ERRO_TIMEOUT_TABELA,
+    PROJUDI_ERRO_NENHUMA_MOVIMENTACAO_ENCONTRADA, PROJUDI_ERRO_ELEMENTO_N_E, PROJUDI_ERRO_EXTRACAO,
+    PROJUDI_ERRO_TIMEOUT_MOV, PROJUDI_ERRO_ELEMENTO_MOV_N_E, PROJUDI_ERRO_ELEMENTO_OBSOLETO,
+    PROJUDI_ERRO_MOVIMENTACAO, PROJUDI_ERRO_TIMEOUT_GERAL, PROJUDI_ERRO_ELEMENTO_GERAL_N_E,
+    PROJUDI_ERRO_WEBDRIVER, PROJUDI_ERRO_GERAL,
+    SLEEP_LOGIN_PROJUDI, SLEEP_MENU_PROJUDI, SLEEP_FRAME_CHANGE_PROJUDI, SLEEP_FIELD_FILL_PROJUDI,
+    SLEEP_SEARCH_PROJUDI, SLEEP_TABLE_RETRY, SLEEP_PAGE_LOAD, SLEEP_AFTER_PROJUDI_CONSULTA # Adicionando SLEEP_AFTER_PROJUDI_CONSULTA
+)
+
+logger = logging.getLogger(__name__) # Instanciar um logger para este módulo
+
+def get_projudi_process_movement(process_number, username, password):
     """
     Consulta a movimentação de um processo diretamente no portal PROJUDI do TJAM, utilizando Selenium
     para automação do navegador. Esta função lida com o login, navegação pelos menus,
@@ -21,7 +37,6 @@ def get_projudi_process_movement(process_number, username, password, status_text
         process_number (str): O número do processo a ser consultado.
         username (str): Nome de usuário para login no PROJUDI.
         password (str): Senha para login no PROJUDI.
-        status_text_widget: O widget de texto da UI para exibir mensagens de status e logs.
 
     Returns:
         tuple: Uma tupla contendo (data_da_movimentacao, descricao_da_movimentacao, nome_executado).
@@ -30,8 +45,8 @@ def get_projudi_process_movement(process_number, username, password, status_text
                Para processos em "Segredo de Justiça", retorna ("", "SEGREDO DE JUSTIÇA", "N/A").
     """
     if not username or not password:
-        status_text_widget.insert(tk.END, "Credenciais do PROJUDI não fornecidas para a consulta.\n")
-        return "N/A", "Credenciais do PROJUDI não fornecidas para a consulta.", "N/A"
+        logger.warning(PROJUDI_ERRO_CREDENCIAIS_NAO_FORNECIDAS)
+        return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_CREDENCIAIS_NAO_FORNECIDAS, STATUS_NAO_DISPONIVEL
 
     driver = None
     try:
@@ -71,7 +86,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
 
         # --- Etapa 1: Navegação e Login ---
         driver.get("https://projudi.tjam.jus.br/projudi/")
-        time.sleep(5) # Aumentado para 5 segundos para garantir carregamento da página inicial
+        time.sleep(SLEEP_LOGIN_PROJUDI) # Aumentado para 5 segundos para garantir carregamento da página inicial
 
         WebDriverWait(driver, 30).until(EC.frame_to_be_available_and_switch_to_it((By.ID, "mainFrame")))
         
@@ -85,7 +100,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
 
         enter_button = WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.XPATH, "//input[@id='btEntrar']")))
         enter_button.click()
-        time.sleep(5) # Aumentado para 5 segundos para garantir carregamento após login
+        time.sleep(SLEEP_LOGIN_PROJUDI) # Aumentado para 5 segundos para garantir carregamento após login
 
         # --- Verificação de Erro de Login ---
         try:
@@ -100,17 +115,17 @@ def get_projudi_process_movement(process_number, username, password, status_text
                 try:
                     error_element = driver.find_element(By.XPATH, error_xpath)
                     if error_element.is_displayed():
-                        status_text_widget.insert(tk.END, f"Possível erro de login no PROJUDI: {error_element.text}\n")
+                        logger.warning(f"Possível erro de login no PROJUDI: %s", error_element.text)
                         error_found = True
                         break
                 except NoSuchElementException:
                     continue
             
             if error_found:
-                return "N/A", "Credenciais inválidas ou problema no login.", "N/A"
+                return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_CREDENCIAIS_INVALIDAS, STATUS_NAO_DISPONIVEL
 
         except Exception as e_login_check:
-            status_text_widget.insert(tk.END, f"Aviso: Verificação de erro de login encontrou um problema: {e_login_check}\n")
+            logger.warning(f"Aviso: Verificação de erro de login encontrou um problema: %s", e_login_check)
 
         # --- Etapa 2: Navegação pelo Menu (após login bem-sucedido) ---
         menu_buscas_id = "Stm0p0i7eTX"
@@ -118,22 +133,22 @@ def get_projudi_process_movement(process_number, username, password, status_text
 
         menu_buscas_element = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.ID, menu_buscas_id)))
         ActionChains(driver).move_to_element(menu_buscas_element).perform()
-        time.sleep(3) # Aumentado para 3 segundos para garantir abertura do menu dropdown
+        time.sleep(SLEEP_MENU_PROJUDI) # Aumentado para 3 segundos para garantir abertura do menu dropdown
 
         processos_1_grau_element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, processos_1_grau_menu_item_id)))
         processos_1_grau_element.click()
         
         # --- Etapa 3: Mudança de Foco para iFrames e Busca do Processo ---
         driver.switch_to.default_content()
-        time.sleep(4) # Aumentado para 4 segundos para garantir mudança de contexto após clicar no menu
+        time.sleep(SLEEP_FRAME_CHANGE_PROJUDI) # Aumentado para 4 segundos para garantir mudança de contexto após clicar no menu
 
         WebDriverWait(driver, 30).until(EC.frame_to_be_available_and_switch_to_it((By.ID, "mainFrame")))
         
         try:
             WebDriverWait(driver, 30).until(EC.frame_to_be_available_and_switch_to_it((By.NAME, "userMainFrame")))
         except TimeoutException:
-            status_text_widget.insert(tk.END, f"Timeout: Não foi possível focar no 'userMainFrame'. A busca pode falhar.\n")
-            return "N/A", "Erro PROJUDI (userMainFrame)", "N/A"
+            logger.error(f"Timeout: Não foi possível focar no \'userMainFrame\'. A busca pode falhar para o processo %s.", process_number)
+            return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_USERMAINFRAME, STATUS_NAO_DISPONIVEL
 
         numero_processo_field = WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "numeroProcesso")))
         numero_processo_field.clear()
@@ -144,9 +159,9 @@ def get_projudi_process_movement(process_number, username, password, status_text
             driver.execute_script(f"arguments[0].value = '{process_number}';", numero_processo_field)
             current_value = numero_processo_field.get_attribute('value')
             if current_value != process_number:
-                status_text_widget.insert(tk.END, "Falha ao preencher 'numeroProcesso'.\n")
-                return "N/A", "Erro PROJUDI (Preenchimento)", "N/A"
-        time.sleep(2) # Aumentado para 2 segundos após preenchimento do número do processo
+                logger.error("Falha ao preencher \'numeroProcesso\' para o processo %s.", process_number)
+                return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_PREENCHIMENTO, STATUS_NAO_DISPONIVEL
+        time.sleep(SLEEP_FIELD_FILL_PROJUDI) # Aumentado para 2 segundos após preenchimento do número do processo
 
         search_button = WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.ID, "pesquisar")))
         try:
@@ -154,7 +169,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
         except Exception:
             driver.execute_script("arguments[0].click();", search_button)
         
-        time.sleep(4) # Aumentado para 4 segundos para garantir tempo suficiente após clicar em pesquisar
+        time.sleep(SLEEP_SEARCH_PROJUDI) # Aumentado para 4 segundos para garantir tempo suficiente após clicar em pesquisar
 
         # --- Etapa 4: Verificação de Resultados da Busca e Extração ---
 
@@ -164,8 +179,8 @@ def get_projudi_process_movement(process_number, username, password, status_text
                 EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Nenhum registro encontrado')]"))
             )
             if no_records_element:
-                status_text_widget.insert(tk.END, f"PROJUDI: Nenhum registro encontrado para o processo {process_number}.\n")
-                return "N/A", "NENHUM REGISTRO ENCONTRADO OU NÚMERO DE PROCESSO INVÁLIDO", "N/A"
+                logger.info(f"PROJUDI: Nenhum registro encontrado para o processo %s.", process_number)
+                return STATUS_NAO_DISPONIVEL, PROJUDI_PROCESS_NAO_ENCONTRADO, STATUS_NAO_DISPONIVEL
         except TimeoutException:
             pass
         except NoSuchElementException:
@@ -175,11 +190,11 @@ def get_projudi_process_movement(process_number, username, password, status_text
         try:
             WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, f"//td[normalize-space()='{process_number}']")))
         except TimeoutException:
-            status_text_widget.insert(tk.END, f"PROJUDI: Processo {process_number} não encontrado na tabela de resultados após busca (Timeout esperando link do processo).\n")
-            return "N/A", "PROJUDI: PROCESSO NÃO LISTADO APÓS BUSCA", "N/A"
+            logger.warning(f"PROJUDI: Processo %s não encontrado na tabela de resultados após busca (Timeout esperando link do processo).", process_number)
+            return STATUS_NAO_DISPONIVEL, PROJUDI_PROCESS_NAO_LISTADO_POS_BUSCA, STATUS_NAO_DISPONIVEL
 
         # Inicializa o nome do executado; será preenchido aqui na página de resultados.
-        executed_name = "N/A"
+        executed_name = STATUS_NAO_DISPONIVEL
         is_segredo_justica = False
 
         # **********************************************
@@ -199,7 +214,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
             Returns:
                 tuple: (nome_executado, is_segredo_justica)
             """
-            nome_executado = "N/A"
+            nome_executado = STATUS_NAO_DISPONIVEL
             segredo = False
             
             try:
@@ -209,13 +224,13 @@ def get_projudi_process_movement(process_number, username, password, status_text
                 # Verificar se é segredo de justiça em qualquer célula
                 for cell in all_cells:
                     cell_text = cell.text.strip()
-                    if "Segredo de Justiça" in cell_text:
+                    if STATUS_SEGREDO_JUSTICA in cell_text:
                         segredo = True
                         break
                 
                 # Se for segredo de justiça, não precisamos procurar mais
                 if segredo:
-                    return "N/A", True
+                    return STATUS_NAO_DISPONIVEL, True
                     
                 # Procura especificamente por "Requerido:" na estrutura da tabela
                 if len(all_cells) > 2:
@@ -241,7 +256,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
                                 li_elements = td_with_name.find_elements(By.TAG_NAME, "li")
                                 if li_elements and li_elements[0].text.strip():
                                     nome_executado = li_elements[0].text.strip()
-                                    status_text_widget.insert(tk.END, f"Requerido encontrado: {nome_executado}\n")
+                                    logger.info(f"Requerido encontrado: %s", nome_executado)
                         except NoSuchElementException:
                             # Se não encontrar com essa abordagem, continua com o próximo método
                             pass
@@ -266,11 +281,11 @@ def get_projudi_process_movement(process_number, username, password, status_text
                                         nome_executado = lis[0].text.strip()
                                         break
                         
-                    if nome_executado != "N/A":
+                    if nome_executado != STATUS_NAO_DISPONIVEL:
                         break
                 
                 # Limpar o nome do executado se encontrado
-                if nome_executado != "N/A":
+                if nome_executado != STATUS_NAO_DISPONIVEL:
                     nome_executado = re.sub(r'advogad[oa]:\s*.*', '', nome_executado, flags=re.IGNORECASE).strip()
                     nome_executado = re.sub(r"^\(parte\s+\w+\):\s*", "", nome_executado, flags=re.IGNORECASE).strip()
                     nome_executado = re.sub(r'\s+', ' ', nome_executado).strip()  # Normaliza espaços
@@ -278,7 +293,8 @@ def get_projudi_process_movement(process_number, username, password, status_text
                 return nome_executado, segredo
                 
             except Exception as e:
-                return "N/A", False
+                logger.error(f"Erro ao extrair dados da linha do processo: %s", e)
+                return STATUS_NAO_DISPONIVEL, False
         
         try:
             # Encontrar a linha (TR) do processo na tabela de resultados
@@ -289,7 +305,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
             # Extrair dados utilizando a função unificada
             extracted_name, is_segredo_justica = extrair_dados_da_linha_processo(process_row_element)
             
-            if extracted_name != "N/A":
+            if extracted_name != STATUS_NAO_DISPONIVEL:
                 executed_name = extracted_name
                 
             # Verificar segredo de justiça diretamente na página também (abordagem anterior)
@@ -303,20 +319,20 @@ def get_projudi_process_movement(process_number, username, password, status_text
             
             # Se for segredo de justiça, retornar imediatamente
             if is_segredo_justica:
-                status_text_widget.insert(tk.END, f"Processo {process_number} em Segredo de Justiça.\n")
-                return "N/A", "SEGREDO DE JUSTIÇA", executed_name
+                logger.info(f"Processo %s em Segredo de Justiça.", process_number)
+                return STATUS_NAO_DISPONIVEL, STATUS_SEGREDO_JUSTICA, executed_name
                 
         except NoSuchElementException as nse:
-            status_text_widget.insert(tk.END, f"Aviso (PROJUDI): Elemento do executado ou de sua linha não encontrado na página de resultados para {process_number}: {nse}.\n")
+            logger.warning(f"Aviso (PROJUDI): Elemento do executado ou de sua linha não encontrado na página de resultados para %s: %s.", process_number, nse)
         except Exception as e_exec:
-            status_text_widget.insert(tk.END, f"Aviso (PROJUDI): Erro inesperado ao extrair dados na página de resultados para {process_number}: {e_exec}\n")
+            logger.warning(f"Aviso (PROJUDI): Erro inesperado ao extrair dados na página de resultados para %s: %s", process_number, e_exec)
             
         # **********************************************
         # Lógica para extrair a data e descrição da última movimentação na PÁGINA DE DETALHES.
         # Implementação baseada no código JS fornecido pelo usuário e na estrutura HTML identificada.
         # **********************************************
-        date = "N/A"
-        description = "MOVIMENTAÇÃO NÃO ENCONTRADA"
+        date = STATUS_NAO_DISPONIVEL
+        description = STATUS_MOVIMENTACAO_NAO_ENCONTRADA
         try:
             # Encontra e clica no link do processo na tabela de resultados.
             process_link_td = WebDriverWait(driver, 20).until(
@@ -327,12 +343,12 @@ def get_projudi_process_movement(process_number, username, password, status_text
             except NoSuchElementException:
                 process_link = process_link_td
             
-            process_link.click() 
+            process_link.click()
             # A JS function não tem sleeps aqui, então vamos usar um tempo mínimo para a mudança de página.
-            time.sleep(3) # Tempo suficiente para o navegador começar a carregar a nova página (ou iframe).
-
-            # A tabela resultTable está diretamente no userMainFrame - simplificando a navegação
-            status_text_widget.insert(tk.END, f"Buscando tabela de movimentações para {process_number}...\n")
+            time.sleep(SLEEP_AFTER_PROJUDI_CONSULTA) # Tempo suficiente para o navegador começar a carregar a nova página (ou iframe).
+ 
+             # A tabela resultTable está diretamente no userMainFrame - simplificando a navegação
+            logger.info(f"Buscando tabela de movimentações para %s...", process_number)
             
             # Garantimos que estamos no frame correto
             try:
@@ -344,22 +360,22 @@ def get_projudi_process_movement(process_number, username, password, status_text
                 WebDriverWait(driver, 20).until(EC.frame_to_be_available_and_switch_to_it((By.NAME, "userMainFrame")))
                 
                 # Sem mensagens redundantes, apenas confirma que está pronto
-                status_text_widget.insert(tk.END, f"Pronto para extrair dados da tabela.\n")
+                logger.info("Pronto para extrair dados da tabela.")
             except TimeoutException:
-                status_text_widget.insert(tk.END, f"Timeout ao navegar para o frame da tabela. Tentando continuar.\n")
+                logger.warning("Timeout ao navegar para o frame da tabela. Tentando continuar.")
             except Exception as e_frame:
-                status_text_widget.insert(tk.END, f"Erro ao navegar para o frame: {str(e_frame)[:50]}. Tentando continuar.\n")
+                logger.warning(f"Erro ao navegar para o frame: %s. Tentando continuar.", str(e_frame)[:50])
             
             # Espera adicional para garantir carregamento completo
-            time.sleep(3)
+            time.sleep(SLEEP_PAGE_LOAD)
             
             # Implementação fiel do script JavaScript fornecido pelo usuário
             # para encontrar a última movimentação processual na tabela de movimentações
             
             # Aguardar um pouco mais antes de procurar a tabela - pode estar carregando dinamicamente
-            time.sleep(5)  # Espera adicional para garantir o carregamento da página
+            time.sleep(SLEEP_PAGE_LOAD)  # Espera adicional para garantir o carregamento da página
             
-            status_text_widget.insert(tk.END, f"Buscando tabela de movimentações para {process_number}...\n")
+            logger.info(f"Buscando tabela de movimentações para %s...", process_number)
             
             # 1. Selecionar a tabela de movimentações com retry
             max_attempts = 3
@@ -367,7 +383,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
             while attempt < max_attempts:
                 try:
                     attempt += 1
-                    status_text_widget.insert(tk.END, f"Tentativa {attempt} de localizar tabela de movimentações...\n")
+                    logger.info(f"Tentativa %s de localizar tabela de movimentações...", attempt)
                     
                     # Ajustando o timeout para 45 segundos conforme solicitado
                     tabela_movimentacoes_tbody = WebDriverWait(driver, 45).until(
@@ -376,36 +392,36 @@ def get_projudi_process_movement(process_number, username, password, status_text
                     
                     if not tabela_movimentacoes_tbody:
                         if attempt < max_attempts:
-                            status_text_widget.insert(tk.END, f"Tabela não encontrada. Tentando novamente ({attempt}/{max_attempts})...\n")
-                            time.sleep(3)  # Espera entre tentativas
+                            logger.info(f"Tabela não encontrada. Tentando novamente (%s/%s)...", attempt, max_attempts)
+                            time.sleep(SLEEP_TABLE_RETRY)  # Espera entre tentativas
                             continue
                         else:
-                            status_text_widget.insert(tk.END, f"Tabela de movimentações não encontrada após {max_attempts} tentativas.\n")
-                            return "N/A", "TABELA DE MOVIMENTAÇÃO NÃO ENCONTRADA", executed_name
+                            logger.error(f"Tabela de movimentações não encontrada após %s tentativas para %s.", max_attempts, process_number)
+                            return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_TABELA_MOVIMENTACAO_N_E, executed_name
                     
-                    status_text_widget.insert(tk.END, f"Tabela de movimentações encontrada! Extraindo dados...\n")
+                    logger.info("Tabela de movimentações encontrada! Extraindo dados...")
                     
                     # 2. Selecionar a primeira linha <tr> dentro do tbody (movimentação mais recente)
                     primeira_linha_mov = tabela_movimentacoes_tbody.find_element(By.TAG_NAME, "tr")
                     
                     if not primeira_linha_mov:
-                        status_text_widget.insert(tk.END, f"Nenhuma linha de movimentação encontrada para {process_number}.\n")
-                        return "N/A", "NENHUMA MOVIMENTAÇÃO ENCONTRADA", executed_name
+                        logger.info(f"Nenhuma linha de movimentação encontrada para %s.", process_number)
+                        return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_NENHUMA_MOVIMENTACAO_ENCONTRADA, executed_name
                     
                     # Inicializar variáveis
-                    date = "N/A"
-                    description = "MOVIMENTAÇÃO NÃO ENCONTRADA"
+                    date = STATUS_NAO_DISPONIVEL
+                    description = STATUS_MOVIMENTACAO_NAO_ENCONTRADA
                     
                     # 3. Extrair a data: está na terceira coluna (índice 2)
                     all_cells = primeira_linha_mov.find_elements(By.TAG_NAME, "td")
                     if all_cells and len(all_cells) > 2:
                         coluna_data = all_cells[2]
                         texto_data = coluna_data.text.strip()
-                        status_text_widget.insert(tk.END, f"Texto da data encontrado: {texto_data}\n")
+                        logger.info(f"Texto da data encontrado: %s", texto_data)
                         match_data = re.search(r'\d{2}\/\d{2}\/\d{4}', texto_data)
                         if match_data:
                             date = match_data.group(0)
-                            status_text_widget.insert(tk.END, f"Data extraída: {date}\n")
+                            logger.info(f"Data extraída: %s", date)
                     
                     # 4. Extrair o evento/descrição da movimentação: está na quarta coluna (índice 3)
                     if all_cells and len(all_cells) > 3:
@@ -413,73 +429,73 @@ def get_projudi_process_movement(process_number, username, password, status_text
                         evento_element = coluna_evento.find_element(By.TAG_NAME, "b")
                         if evento_element:
                             description = evento_element.text.strip()
-                            status_text_widget.insert(tk.END, f"Descrição extraída: {description}\n")
+                            logger.info(f"Descrição extraída: %s", description)
                     
                     # Verifica se ambos os dados foram encontrados
-                    if date == "N/A" or description == "MOVIMENTAÇÃO NÃO ENCONTRADA":
-                        status_text_widget.insert(tk.END, f"Não foi possível extrair completamente os dados da movimentação.\n")
+                    if date == STATUS_NAO_DISPONIVEL or description == STATUS_MOVIMENTACAO_NAO_ENCONTRADA:
+                        logger.warning("Não foi possível extrair completamente os dados da movimentação.")
                     
                     # Se chegou até aqui, encontrou a tabela e tentou extrair os dados
                     break
                     
                 except TimeoutException:
                     if attempt < max_attempts:
-                        status_text_widget.insert(tk.END, f"Timeout ao buscar tabela. Tentativa {attempt}/{max_attempts}. Tentando novamente...\n")
+                        logger.warning(f"Timeout ao buscar tabela. Tentativa %s/%s. Tentando novamente...", attempt, max_attempts)
                         # Tentar fazer scroll para baixo para ajudar a carregar a tabela
                         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                        time.sleep(3)
+                        time.sleep(SLEEP_TABLE_RETRY)
                     else:
-                        status_text_widget.insert(tk.END, f"Timeout final ao buscar tabela de movimentações após {max_attempts} tentativas.\n")
-                        return "Erro PROJUDI (Timeout Tabela)", "Erro PROJUDI (Timeout Tabela)", executed_name
+                        logger.error(f"Timeout final ao buscar tabela de movimentações após %s tentativas para %s.", max_attempts, process_number)
+                        return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_TIMEOUT_TABELA, executed_name
                 
                 except NoSuchElementException as nse:
-                    status_text_widget.insert(tk.END, f"Elemento não encontrado ao extrair movimentação (tentativa {attempt}/{max_attempts}): {nse}\n")
+                    logger.error(f"Elemento não encontrado ao extrair movimentação (tentativa %s/%s) para %s: %s", attempt, max_attempts, process_number, nse)
                     if attempt < max_attempts:
-                        time.sleep(3)  # Espera entre tentativas
+                        time.sleep(SLEEP_TABLE_RETRY)  # Espera entre tentativas
                     else:
-                        return "Erro PROJUDI (Elemento N/E)", "Erro PROJUDI (Elemento N/E)", executed_name
+                        return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_ELEMENTO_N_E, executed_name
                 
                 except Exception as e:
-                    status_text_widget.insert(tk.END, f"Erro ao extrair movimentação (tentativa {attempt}/{max_attempts}): {e}\n")
+                    logger.error(f"Erro ao extrair movimentação (tentativa %s/%s) para %s: %s", attempt, max_attempts, process_number, e)
                     if attempt < max_attempts:
-                        time.sleep(3)  # Espera entre tentativas
+                        time.sleep(SLEEP_TABLE_RETRY)  # Espera entre tentativas
                     else:
-                        return "Erro PROJUDI (Extração)", f"Erro PROJUDI: {str(e)[:50]}", executed_name
+                        return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_EXTRACAO, executed_name
             
         except TimeoutException:
-            status_text_widget.insert(tk.END, f"Erro PROJUDI (Timeout Mov) para {process_number}.\n")
-            date = "Erro PROJUDI (Timeout Mov)"
-            description = "Erro PROJUDI (Timeout Mov)"
+            logger.error(f"Erro PROJUDI (Timeout Mov) para %s.", process_number)
+            date = PROJUDI_ERRO_TIMEOUT_MOV
+            description = PROJUDI_ERRO_TIMEOUT_MOV
         except NoSuchElementException:
-            status_text_widget.insert(tk.END, f"Elemento da movimentação não encontrado para {process_number}.\n")
-            date = "Erro PROJUDI (Elemento Mov N/E)"
-            description = "Erro PROJUDI (Elemento Mov N/E)"
+            logger.error(f"Elemento da movimentação não encontrado para %s.", process_number)
+            date = PROJUDI_ERRO_ELEMENTO_MOV_N_E
+            description = PROJUDI_ERRO_ELEMENTO_MOV_N_E
         except StaleElementReferenceException as sere: # Capturar erro de elemento obsoleto
-            status_text_widget.insert(tk.END, f"Aviso (PROJUDI): Elemento obsoleto ao extrair movimentação para {process_number}: {sere}\n")
-            date = "Erro PROJUDI (Elemento Obsoleto)"
-            description = "Erro PROJUDI (Elemento Obsoleto)"
+            logger.warning(f"Aviso (PROJUDI): Elemento obsoleto ao extrair movimentação para %s: %s", process_number, sere)
+            date = PROJUDI_ERRO_ELEMENTO_OBSOLETO
+            description = PROJUDI_ERRO_ELEMENTO_OBSOLETO
         except Exception as e_mov:
-            status_text_widget.insert(tk.END, f"Erro inesperado ao processar movimentação de {process_number}: {e_mov}\n")
-            date = "Erro PROJUDI (Movimentação)"
-            description = "Erro PROJUDI (Movimentação)"
+            logger.error(f"Erro inesperado ao processar movimentação de %s: %s", process_number, e_mov)
+            date = PROJUDI_ERRO_MOVIMENTACAO
+            description = PROJUDI_ERRO_MOVIMENTACAO
         
         return date, description, executed_name
-
+ 
     except TimeoutException as te:
-        status_text_widget.insert(tk.END, f"Timeout geral ao interagir com PROJUDI para {process_number}: {te}\n")
-        return "N/A", "Erro PROJUDI (Timeout Geral)", "N/A"
+        logger.error(f"Timeout geral ao interagir com PROJUDI para %s: %s", process_number, te)
+        return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_TIMEOUT_GERAL, STATUS_NAO_DISPONIVEL
     except NoSuchElementException as nse:
-        status_text_widget.insert(tk.END, f"Elemento não encontrado na página do PROJUDI para {process_number}: {nse}.\n")
-        return "N/A", "Erro PROJUDI (Elemento Geral N/E)", "N/A"
+        logger.error(f"Elemento não encontrado na página do PROJUDI para %s: %s.", process_number, nse)
+        return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_ELEMENTO_GERAL_N_E, STATUS_NAO_DISPONIVEL
     except WebDriverException as wde:
-        status_text_widget.insert(tk.END, f"Erro do WebDriver ao consultar PROJUDI para {process_number}: {wde}\n")
-        return "N/A", "Erro PROJUDI (WebDriver)", "N/A"
+        logger.error(f"Erro do WebDriver ao consultar PROJUDI para %s: %s", process_number, wde)
+        return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_WEBDRIVER, STATUS_NAO_DISPONIVEL
     except Exception as e:
-        status_text_widget.insert(tk.END, f"Erro geral ao consultar PROJUDI para {process_number} com Selenium: {e}\n")
-        return "N/A", "Erro PROJUDI (Geral)", "N/A"
+        logger.error(f"Erro geral ao consultar PROJUDI para %s com Selenium: %s", process_number, e)
+        return STATUS_NAO_DISPONIVEL, PROJUDI_ERRO_GERAL, STATUS_NAO_DISPONIVEL
     finally:
         if driver:
             try:
                 driver.quit()
             except WebDriverException as e:
-                status_text_widget.insert(tk.END, f"Aviso: Erro ao fechar o driver do Selenium para {process_number}: {e}\n")
+                logger.warning(f"Aviso: Erro ao fechar o driver do Selenium para %s: %s", process_number, e)

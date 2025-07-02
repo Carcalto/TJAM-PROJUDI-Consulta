@@ -5,3 +5,4 @@ selenium
 webdriver-manager
 openpyxl
 pyinstaller
+keyring
