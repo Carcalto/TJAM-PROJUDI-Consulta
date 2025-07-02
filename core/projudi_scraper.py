@@ -31,7 +31,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
     """
     if not username or not password:
         status_text_widget.insert(tk.END, "Credenciais do PROJUDI não fornecidas para a consulta.\n")
-        return "N/A", "Credenciais do PROJUDI não fornecidas para a consulta."
+        return "N/A", "Credenciais do PROJUDI não fornecidas para a consulta.", "N/A"
 
     driver = None
     try:
