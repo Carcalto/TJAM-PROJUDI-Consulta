@@ -96,7 +96,7 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
 
             # Realiza a consulta da movimentação do processo.
             # Esta função tentará o TJAM primeiro e, se necessário, o PROJUDI.
-            date, description = get_tjam_process_movement(process_number, status_text_widget, username, password)
+            date, description, executed_name = get_tjam_process_movement(process_number, status_text_widget, username, password)
 
             # Lista de descrições que indicam falha ou ausência de dados concretos,
             # excluindo "SEGREDO DE JUSTIÇA" que é um estado válido.
@@ -115,13 +115,7 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
             # Normaliza para maiúsculas para comparação case-insensitive
             current_date_upper = str(date).upper()
             current_description_upper = str(description).upper()
-
-            # Verifica se o resultado indica uma falha genérica e não é "SEGREDO DE JUSTIÇA"
-            is_failure = (current_date_upper in failure_indicators_date or
-                          current_description_upper in failure_indicators_desc)
             
-            is_segredo = (current_description_upper == "SEGREDO DE JUSTIÇA")
-
             # Exibe o resultado da consulta no widget de status.
             credential_error_messages = [
                 "Credenciais do PROJUDI não fornecidas para a consulta.",
@@ -130,7 +124,7 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
             if description in credential_error_messages:
                 status_text_widget.insert(tk.END, f"  Resultado para {process_number}: Data: {str(date)}, {str(description)}\n")
             else:
-                status_text_widget.insert(tk.END, f"  Resultado para {process_number}: Data: {str(date)}, Movimentação: {str(description)}\n")
+                status_text_widget.insert(tk.END, f"  Resultado para {process_number}: Data: {str(date)}, Movimentação: {str(description)}, Requerido/Executado: {str(executed_name)}\n")
             status_text_widget.insert(tk.END, "\n") # Linha em branco para separação visual.
             status_text_widget.insert(tk.END, "----------------------------------------------------------------------\n") # Linha tracejada para separação.
             status_text_widget.see(tk.END)
@@ -138,7 +132,14 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
             # Prepara os dados para o DataFrame do Excel.
             date_upper = str(date).upper()
             description_upper = str(description).upper()
-            results.append({"PROCESSO": process_number, "DATA_ULTIMA_MOVIMENTACAO": date_upper, "DESCRICAO_ULTIMA_MOVIMENTACAO": description_upper})
+            executed_name_upper = str(executed_name).upper() # Garante que o nome do executado também seja UPPER
+
+            results.append({
+                "PROCESSO": process_number,
+                "DATA_ULTIMA_MOVIMENTACAO": date_upper,
+                "DESCRICAO_ULTIMA_MOVIMENTACAO": description_upper,
+                "REQUERIDO/EXECUTADO": executed_name_upper # Renomeado para "REQUERIDO/EXECUTADO"
+            })
             
             progress_bar_widget["value"] = (i + 1) / total_processes * 100
             # root.update_idletasks() # UI deve lidar

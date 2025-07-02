@@ -140,7 +140,7 @@ TJAM-PROJUDI-consulta/
 
 5.  **Salve os Resultados:**
     *   Ao final da consulta de todos os processos, uma caixa de diálogo aparecerá automaticamente, solicitando que você escolha um local e nome para salvar o arquivo Excel com os resultados.
-    *   O arquivo de saída conterá as colunas: `PROCESSO`, `DATA_ULTIMA_MOVIMENTACAO`, `DESCRICAO_ULTIMA_MOVIMENTACAO`.
+    *   O arquivo de saída conterá as colunas: `PROCESSO`, `DATA_ULTIMA_MOVIMENTACAO`, `DESCRICAO_ULTIMA_MOVIMENTACAO`, `REQUERIDO/EXECUTADO`.
 
 6.  **Nova Consulta:**
     *   Para realizar uma nova consulta com um arquivo diferente, clique no botão "**Nova Consulta**". Isso resetará a interface.

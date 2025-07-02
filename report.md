@@ -17,8 +17,8 @@ O sistema foi arquitetado seguindo um pipeline claro de processamento de dados, 
     -   **Fonte 2 (PROJUDI):** Utiliza a biblioteca `selenium` com `webdriver-manager` para automatizar um navegador Chrome em modo headless. Esta abordagem é necessária para o PROJUDI, pois o portal exige login e navegação complexa baseada em JavaScript e iframes para acessar as informações.
 
 -   **Engenharia:**
-    -   **Parsing:** Após a extração do HTML, a biblioteca `BeautifulSoup4` é usada para analisar (parse) o documento, permitindo a navegação e a extração de dados específicos, como a data e a descrição da última movimentação.
-    -   **Limpeza e Estruturação:** Os dados extraídos são limpos (remoção de espaços extras, quebras de linha) e estruturados em um formato consistente. A biblioteca `pandas` é utilizada para organizar os resultados em memória antes de serem salvos.
+    -   **Parsing:** Após a extração do HTML, a biblioteca `BeautifulSoup4` é usada para analisar (parse) o documento, permitindo a navegação e a extração de dados específicos, como a data e a descrição da última movimentação, além do nome da parte requerida/executada.
+    -   **Limpeza e Estruturação:** Os dados extraídos são limpos (remoção de espaços extras, quebras de linha) e estruturados em um formato consistente. A biblioteca `pandas` é utilizada para organizar os resultados em memória antes de serem salvos. Os dados do requerido/executado são convertidos para maiúsculas no arquivo Excel final.
 
 -   **Análise e Apresentação:**
     -   **Interface do Usuário:** Uma interface gráfica construída com `tkinter` serve como a principal forma de interação do usuário. Ela permite carregar uma lista de processos de um arquivo Excel, inserir credenciais, iniciar a consulta e visualizar o progresso e os resultados em tempo real.
