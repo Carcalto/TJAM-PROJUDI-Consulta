@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import tkinter as tk # Para status_text_widget.insert, idealmente seria um callback ou logger
 import re # Adicionado para limpeza de texto
 from .projudi_scraper import get_projudi_process_movement # Importação correta
+import time
 
 def get_tjam_process_movement(process_number, status_text_widget, projudi_username, projudi_password):
     """
@@ -104,9 +105,11 @@ def get_tjam_process_movement(process_number, status_text_widget, projudi_userna
                     status_text_widget.insert(tk.END, f"Processo {process_number} (TJAM) indica transferência. Consultando PROJUDI...\n")
                     # Se transferido, chama a função para consultar no PROJUDI.
                     projudi_date, projudi_description, projudi_executed_name = get_projudi_process_movement(process_number, projudi_username, projudi_password, status_text_widget)
+                    time.sleep(3)
                     return projudi_date, projudi_description, projudi_executed_name # Retorna os dados do PROJUDI
                 
                 # Se não foi transferido, retorna a data e a descrição encontradas no TJAM, e o nome do executado.
+                time.sleep(3)
                 return date, description, executed_name
 
         # Se nenhuma tabela de movimentações foi encontrada ou se a tabela estava vazia,
@@ -117,6 +120,7 @@ def get_tjam_process_movement(process_number, status_text_widget, projudi_userna
         if "processo transferido para o projudi" in page_content_text:
             status_text_widget.insert(tk.END, f"Processo {process_number} (TJAM) indica transferência. Consultando PROJUDI...\n")
             projudi_date, projudi_description, projudi_executed_name = get_projudi_process_movement(process_number, projudi_username, projudi_password, status_text_widget)
+            time.sleep(3)
             return projudi_date, projudi_description, projudi_executed_name # Retorna os dados do PROJUDI
         
         # Verifica se o texto da página indica que não há movimentações.
@@ -124,12 +128,14 @@ def get_tjam_process_movement(process_number, status_text_widget, projudi_userna
              status_text_widget.insert(tk.END, f"Processo {process_number} (TJAM) sem movimentações. Consultando PROJUDI...\n")
              # Mesmo sem movimentações no TJAM, pode haver no PROJUDI (ex: processos mais antigos migrados).
              projudi_date, projudi_description, projudi_executed_name = get_projudi_process_movement(process_number, projudi_username, projudi_password, status_text_widget)
+             time.sleep(3)
              return projudi_date, projudi_description, projudi_executed_name # Retorna os dados do PROJUDI
 
         # Se nenhuma das condições anteriores foi atendida (sem tabela, sem texto indicativo claro),
         # por precaução, tenta consultar no PROJUDI.
         status_text_widget.insert(tk.END, f"Não foi possível extrair movimentações do TJAM para {process_number}. Consultando PROJUDI...\n")
         projudi_date, projudi_description, projudi_executed_name = get_projudi_process_movement(process_number, projudi_username, projudi_password, status_text_widget)
+        time.sleep(3)
         return projudi_date, projudi_description, projudi_executed_name # Retorna os dados do PROJUDI
 
     except requests.exceptions.RequestException as e:
@@ -137,10 +143,12 @@ def get_tjam_process_movement(process_number, status_text_widget, projudi_userna
         # informa o erro e tenta consultar diretamente no PROJUDI.
         status_text_widget.insert(tk.END, f"Erro de conexão ao TJAM para o processo {process_number}: {e}. Tentando PROJUDI...\n")
         projudi_date, projudi_description, projudi_executed_name = get_projudi_process_movement(process_number, projudi_username, projudi_password, status_text_widget)
+        time.sleep(3)
         return projudi_date, projudi_description, projudi_executed_name # Retorna os dados do PROJUDI
     except Exception as e:
         # Para qualquer outro erro inesperado durante o processamento da página do TJAM,
         # informa o erro e tenta consultar no PROJUDI como fallback.
         status_text_widget.insert(tk.END, f"Erro ao processar o processo {process_number} no TJAM: {e}. Tentando PROJUDI...\n")
         projudi_date, projudi_description, projudi_executed_name = get_projudi_process_movement(process_number, projudi_username, projudi_password, status_text_widget)
+        time.sleep(3)
         return projudi_date, projudi_description, projudi_executed_name # Retorna os dados do PROJUDI
