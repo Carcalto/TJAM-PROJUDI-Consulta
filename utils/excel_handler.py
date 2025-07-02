@@ -4,23 +4,64 @@
 import pandas as pd # Biblioteca para manipulação e análise de dados, usada para ler/escrever Excel.
 from tkinter import filedialog, messagebox # Para caixas de diálogo de seleção/salvamento de arquivo e mensagens.
 
+def is_valid_process_number(process_number):
+    """
+    Valida se um número de processo tem exatamente 20 caracteres numéricos após remover caracteres especiais.
+    
+    Args:
+        process_number (str): O número do processo a ser validado.
+        
+    Returns:
+        bool: True se o número for válido, False caso contrário.
+    """
+    # Remove caracteres não numéricos (pontos, hífens, espaços, etc.)
+    digits_only = ''.join(filter(str.isdigit, str(process_number)))
+    
+    # Verifica se restaram exatamente 20 dígitos
+    return len(digits_only) == 20
+
 def read_process_numbers_from_excel(file_path):
     """
     Lê os números dos processos de um arquivo Excel.
-    Retorna uma lista de números de processo ou None em caso de erro.
+    Valida cada número para garantir que tem 20 caracteres numéricos.
+    
+    Returns:
+        tuple: (valid_numbers, invalid_numbers) onde:
+               - valid_numbers é uma lista de números de processo válidos
+               - invalid_numbers é uma lista de números de processo inválidos
     """
     try:
         df = pd.read_excel(file_path)
+        
+        # Identificar a coluna correta
+        process_column = None
         if "PROCESSO" in df.columns:
-            return df["PROCESSO"].astype(str).tolist()
+            process_column = "PROCESSO"
         elif "processo" in df.columns:
-            return df["processo"].astype(str).tolist()
+            process_column = "processo"
         else:
             messagebox.showerror("Erro de Leitura", "O arquivo Excel deve conter uma coluna chamada 'PROCESSO' ou 'processo'.")
-            return None
+            return None, None
+        
+        # Converter todos os números para string e validar
+        all_numbers = df[process_column].astype(str).tolist()
+        valid_numbers = []
+        invalid_numbers = []
+        
+        for num in all_numbers:
+            if is_valid_process_number(num):
+                valid_numbers.append(num)
+            else:
+                invalid_numbers.append(num)
+                
+        if invalid_numbers:
+            messagebox.showwarning("Atenção", f"Foram encontrados {len(invalid_numbers)} números de processo inválidos. "
+                                   f"Eles serão incluídos no resultado final como 'NÚMERO DE PROCESSO INVÁLIDO'.")
+                
+        return valid_numbers, invalid_numbers
     except Exception as e:
         messagebox.showerror("Erro de Leitura", f"Ocorreu um erro ao ler o arquivo Excel: {e}")
-        return None
+        return None, None
 
 def save_results_to_excel(results_list, default_filename="resultados_consulta.xlsx"):
     """

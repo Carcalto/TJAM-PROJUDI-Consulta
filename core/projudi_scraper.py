@@ -37,7 +37,7 @@ def get_projudi_process_movement(process_number, username, password, status_text
     try:
         # --- Configuração do WebDriver (Selenium) com otimizações ---
         options = webdriver.ChromeOptions()
-        # options.add_argument("--headless") # Mantemos visível para facilitar diagnóstico
+        options.add_argument("--headless") # Navegador invisível para execução em produção
         options.add_argument("--start-maximized")
         options.add_argument("--log-level=3")
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
@@ -180,65 +180,136 @@ def get_projudi_process_movement(process_number, username, password, status_text
 
         # Inicializa o nome do executado; será preenchido aqui na página de resultados.
         executed_name = "N/A"
+        is_segredo_justica = False
 
         # **********************************************
-        # Lógica para extrair o NOME DO EXECUTADO na PÁGINA DE RESULTADOS DA BUSCA (Etapa 4).
-        # Implementação baseada no código JS fornecido pelo usuário e na estrutura HTML identificada.
+        # Função unificada para extrair informações da linha do processo:
+        # - NOME DO EXECUTADO/REQUERIDO
+        # - Status "SEGREDO DE JUSTIÇA"
+        # Implementação baseada no código JS fornecido pelo usuário.
         # **********************************************
+        def extrair_dados_da_linha_processo(linha_tr):
+            """
+            Extrai dados de uma linha de processo, incluindo nome do requerido/executado
+            e se é segredo de justiça.
+            
+            Args:
+                linha_tr: Elemento TR da linha do processo
+                
+            Returns:
+                tuple: (nome_executado, is_segredo_justica)
+            """
+            nome_executado = "N/A"
+            segredo = False
+            
+            try:
+                # Obter todas as células (TD) da linha
+                all_cells = linha_tr.find_elements(By.TAG_NAME, "td")
+                
+                # Verificar se é segredo de justiça em qualquer célula
+                for cell in all_cells:
+                    cell_text = cell.text.strip()
+                    if "Segredo de Justiça" in cell_text:
+                        segredo = True
+                        break
+                
+                # Se for segredo de justiça, não precisamos procurar mais
+                if segredo:
+                    return "N/A", True
+                    
+                # Procura especificamente por "Requerido:" na estrutura da tabela
+                if len(all_cells) > 2:
+                    terceira_coluna = all_cells[2]
+                    
+                    # Procurar pela tabela.form que contém os dados das partes
+                    table_forms = terceira_coluna.find_elements(By.CSS_SELECTOR, "table.form")
+                    if table_forms:
+                        table_form = table_forms[0]
+                        
+                        # Agora procurar especificamente a linha que contém "Requerido:"
+                        try:
+                            requerido_font = table_form.find_element(By.XPATH, ".//font[contains(text(), 'Requerido:')]")
+                            if requerido_font:
+                                # Subir para o elemento pai (td) e depois para o pai desse (tr)
+                                requerido_td = requerido_font.find_element(By.XPATH, "./..")
+                                requerido_tr = requerido_td.find_element(By.XPATH, "./..")
+                                
+                                # Na mesma linha (tr), pegar a segunda célula (td) que tem o nome
+                                td_with_name = requerido_tr.find_elements(By.TAG_NAME, "td")[1]
+                                
+                                # Agora pegar o texto do <li> dentro do <ul> nessa célula
+                                li_elements = td_with_name.find_elements(By.TAG_NAME, "li")
+                                if li_elements and li_elements[0].text.strip():
+                                    nome_executado = li_elements[0].text.strip()
+                                    status_text_widget.insert(tk.END, f"Requerido encontrado: {nome_executado}\n")
+                        except NoSuchElementException:
+                            # Se não encontrar com essa abordagem, continua com o próximo método
+                            pass
+                
+                # Abordagem alternativa: procurar por células com labels específicos
+                exec_labels = ["Requerido:", "Executado:", "Réu:", "Embargante:"]
+                
+                for i, cell in enumerate(all_cells):
+                    cell_text = cell.text.strip()
+                    
+                    for label in exec_labels:
+                        if label.replace(":", "") in cell_text:
+                            # Se o label está nesta célula, o nome está na próxima
+                            if (i + 1) < len(all_cells):
+                                next_cell = all_cells[i + 1]
+                                
+                                # Procurar por UL e LI na próxima célula
+                                uls = next_cell.find_elements(By.TAG_NAME, "ul")
+                                if uls:
+                                    lis = uls[0].find_elements(By.TAG_NAME, "li")
+                                    if lis and lis[0].text.strip():
+                                        nome_executado = lis[0].text.strip()
+                                        break
+                        
+                    if nome_executado != "N/A":
+                        break
+                
+                # Limpar o nome do executado se encontrado
+                if nome_executado != "N/A":
+                    nome_executado = re.sub(r'advogad[oa]:\s*.*', '', nome_executado, flags=re.IGNORECASE).strip()
+                    nome_executado = re.sub(r"^\(parte\s+\w+\):\s*", "", nome_executado, flags=re.IGNORECASE).strip()
+                    nome_executado = re.sub(r'\s+', ' ', nome_executado).strip()  # Normaliza espaços
+                
+                return nome_executado, segredo
+                
+            except Exception as e:
+                return "N/A", False
+        
         try:
-            # Encontrar a linha (TR) do processo na tabela de resultados.
-            # O JavaScript usa 'tr[id^="linha"]', e o process_number está na cells[1] de uma td.
+            # Encontrar a linha (TR) do processo na tabela de resultados
             process_row_element = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, f"//td[normalize-space()='{process_number}']//ancestor::tr[1]"))
             )
             
-            all_tds_in_process_row = process_row_element.find_elements(By.TAG_NAME, "td")
-
-            if len(all_tds_in_process_row) > 2: # Garante que a terceira coluna (índice 2) exista
-                coluna_partes = all_tds_in_process_row[2] # A terceira coluna (índice 2)
-                
-                # Termos para identificar o label do executado
-                exec_labels = ["Requerido:", "Executado:", "Réu:", "Embargante:"]
-
-                # Iterar por todos os elementos-filho da coluna de partes para encontrar o label
-                for current_td_in_row_index, current_td_in_row_elem in enumerate(all_tds_in_process_row):
-                    td_text_full = current_td_in_row_elem.text.strip() # Pega o texto visível da TD
-
-                    for label in exec_labels:
-                        if label.replace(":", "") in td_text_full: # Verifica se o TD contém o label desejado (sem ":")
-                            # Se esta TD é a que tem o label, o nome do executado está na próxima TD.
-                            if (current_td_in_row_index + 1) < len(all_tds_in_process_row):
-                                next_td_with_name = all_tds_in_process_row[current_td_in_row_index + 1]
-                                
-                                # Tenta encontrar o <ul> e <li> dentro da próxima TD
-                                ul_elements = next_td_with_name.find_elements(By.TAG_NAME, "ul")
-                                if ul_elements:
-                                    li_element = ul_elements[0].find_element(By.TAG_NAME, "li")
-                                    if li_element and li_element.text.strip():
-                                        executed_name = li_element.text.strip()
-                                        break # Sai do loop de labels
-                    if executed_name != "N/A": # Se o nome do executado foi encontrado, sai do loop de TDs na linha do processo
-                        break
+            # Extrair dados utilizando a função unificada
+            extracted_name, is_segredo_justica = extrair_dados_da_linha_processo(process_row_element)
             
-            if executed_name != "N/A":
-                # Limpeza final do nome do executado
-                executed_name = re.sub(r'advogad[oa]:\s*.*', '', executed_name, flags=re.IGNORECASE).strip()
-                executed_name = re.sub(r"^\(parte\s+\w+\):\s*", "", executed_name, flags=re.IGNORECASE).strip()
-                executed_name = re.sub(r'\s+', ' ', executed_name).strip() # Normaliza espaços
-
+            if extracted_name != "N/A":
+                executed_name = extracted_name
+                
+            # Verificar segredo de justiça diretamente na página também (abordagem anterior)
+            if not is_segredo_justica:
+                try:
+                    segredo_justica_element = driver.find_element(By.XPATH, "//*[contains(text(), 'Segredo de Justiça')]")
+                    if segredo_justica_element and segredo_justica_element.is_displayed():
+                        is_segredo_justica = True
+                except NoSuchElementException:
+                    pass  # Não é Segredo de Justiça
+            
+            # Se for segredo de justiça, retornar imediatamente
+            if is_segredo_justica:
+                status_text_widget.insert(tk.END, f"Processo {process_number} em Segredo de Justiça.\n")
+                return "N/A", "SEGREDO DE JUSTIÇA", executed_name
+                
         except NoSuchElementException as nse:
             status_text_widget.insert(tk.END, f"Aviso (PROJUDI): Elemento do executado ou de sua linha não encontrado na página de resultados para {process_number}: {nse}.\n")
         except Exception as e_exec:
-            status_text_widget.insert(tk.END, f"Aviso (PROJUDI): Erro inesperado ao extrair executado na página de resultados para {process_number}: {e_exec}\n")
-
-        # A verificação de "Segredo de Justiça" também ocorre na página de resultados da busca.
-        try:
-            segredo_justica_element = driver.find_element(By.XPATH, "//*[contains(text(), 'Segredo de Justiça')]")
-            if segredo_justica_element and segredo_justica_element.is_displayed():
-                status_text_widget.insert(tk.END, f"Processo {process_number} em Segredo de Justiça.\n")
-                return "N/A", "SEGREDO DE JUSTIÇA", executed_name # Retorna o executado se encontrado, senão N/A
-        except NoSuchElementException:
-            pass # Não é Segredo de Justiça, continua o fluxo.
+            status_text_widget.insert(tk.END, f"Aviso (PROJUDI): Erro inesperado ao extrair dados na página de resultados para {process_number}: {e_exec}\n")
             
         # **********************************************
         # Lógica para extrair a data e descrição da última movimentação na PÁGINA DE DETALHES.

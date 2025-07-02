@@ -76,8 +76,8 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
 
     try:
         # Lê os números dos processos do arquivo Excel fornecido.
-        process_numbers = read_process_numbers_from_excel(excel_path)
-        if process_numbers is None:
+        valid_numbers, invalid_numbers = read_process_numbers_from_excel(excel_path)
+        if valid_numbers is None:
             # Se a leitura falhar, read_process_numbers_from_excel já exibiu um erro.
             # Apenas reabilita os botões na UI e retorna.
             button_widgets_map['load'].config(state="normal")
@@ -85,7 +85,22 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
             return
 
         results = []
-        total_processes = len(process_numbers)
+        
+        # Adiciona os números inválidos direto aos resultados sem consultar
+        for invalid_num in invalid_numbers:
+            results.append({
+                "PROCESSO": invalid_num,
+                "DATA_ULTIMA_MOVIMENTACAO": "N/A",
+                "DESCRICAO_ULTIMA_MOVIMENTACAO": "NÚMERO DE PROCESSO INVÁLIDO",
+                "REQUERIDO/EXECUTADO": "N/A"
+            })
+            status_text_widget.insert(tk.END, f"Processo {invalid_num}: Número inválido (não possui 20 caracteres numéricos)\n")
+            status_text_widget.insert(tk.END, "----------------------------------------------------------------------\n")
+            status_text_widget.see(tk.END)
+
+        # Processa apenas os números válidos
+        process_numbers = valid_numbers
+        total_processes = len(process_numbers) + len(invalid_numbers)
         username, password = credentials_tuple # Desempacota as credenciais do PROJUDI.
 
         # Itera sobre cada número de processo para realizar a consulta.
@@ -141,7 +156,9 @@ def main_start_consultation_action(excel_path, status_text_widget, progress_bar_
                 "REQUERIDO/EXECUTADO": executed_name_upper # Renomeado para "REQUERIDO/EXECUTADO"
             })
             
-            progress_bar_widget["value"] = (i + 1) / total_processes * 100
+            # Ajusta o cálculo da barra de progresso para considerar processos inválidos já processados
+            progresso_atual = len(invalid_numbers) + (i + 1)
+            progress_bar_widget["value"] = progresso_atual / total_processes * 100
             # root.update_idletasks() # UI deve lidar
 
         # Após o loop, se houver resultados, salva-os em um arquivo Excel.
