@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import re 
 import logging 
-from .projudi_scraper import get_projudi_process_movement 
+from .projudi_orchestrator import get_projudi_process_movement
 import time
 
 # Importar constantes

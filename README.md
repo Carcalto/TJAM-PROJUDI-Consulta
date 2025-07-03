@@ -71,7 +71,8 @@ TJAM-PROJUDI-consulta/
 │   └── interface.py        # Contém a classe AppUI e toda a lógica da interface gráfica (Tkinter).
 ├── core/
 │   ├── tjam_scraper.py     # Lógica de scraping para o portal SAJ do TJAM.
-│   └── projudi_scraper.py  # Lógica de scraping para o portal PROJUDI (usando Selenium).
+│   ├── projudi_orchestrator.py # Orquestra a consulta PROJUDI utilizando Page Objects.
+│   └── projudi_pages.py    # Implementa o padrão Page Object Model para interações com o PROJUDI.
 ├── utils/
 │   ├── config_manager.py   # Gerencia o carregamento e salvamento de credenciais (prioriza `keyring`, fallback para `config.ini`).
 │   ├── excel_handler.py    # Lida com a leitura e escrita de arquivos Excel.
@@ -145,7 +146,7 @@ TJAM-PROJUDI-consulta/
 
 *   **Interface Gráfica:** Tkinter (biblioteca padrão do Python).
 *   **Consulta SAJ (TJAM):** Realizada com as bibliotecas `requests` (para requisições HTTP) e `BeautifulSoup4` (para parsing de HTML).
-*   **Consulta PROJUDI:** Realizada com `Selenium` (para automação de navegador) e `webdriver-manager` (para gerenciamento automático do ChromeDriver). O Google Chrome é controlado em modo headless (sem interface visível).
+*   **Consulta PROJUDI:** Refatorada para utilizar o padrão Page Object Model para maior modularidade. Realizada com `Selenium` (para automação de navegador) e `webdriver-manager` (para gerenciamento automático do ChromeDriver). O Google Chrome é controlado em modo headless (sem interface visível).
 *   **Manipulação de Excel:** Realizada com a biblioteca `Pandas`.
 *   **Gerenciamento de Credenciais:** Agora utiliza a biblioteca `keyring` para armazenamento seguro no sistema operacional, com `configparser` como um fallback menos seguro.
 *   **Sistema de Logging:** Implementado um sistema de logging robusto com o módulo `logging` do Python, exibindo feedback detalhado na interface do usuário (UI).

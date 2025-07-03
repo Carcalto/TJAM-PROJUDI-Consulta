@@ -7,7 +7,7 @@ from utils.config_manager import load_credentials, save_credentials
 from utils.config_manager import projudi_username as cfg_projudi_username # Para obter as credenciais carregadas
 from utils.config_manager import projudi_password as cfg_projudi_password
 from utils.excel_handler import read_process_numbers_from_excel, save_results_to_excel
-from core.tjam_scraper import get_tjam_process_movement
+from core.tjam_scraper import get_tjam_process_movement # Esta função orquestra as chamadas para PROJUDI se necessário
 
 # Importa a função para lançar a UI
 from ui.interface import launch_ui
@@ -106,7 +106,6 @@ def main_start_consultation_action(excel_path, progress_bar_widget, button_widge
 
             # Realiza a consulta da movimentação do processo.
             # Esta função tentará o TJAM primeiro e, se necessário, o PROJUDI.
-            # O status_text_widget foi removido como argumento.
             date, description, executed_name = get_tjam_process_movement(process_number, username, password)
 
             # Prepara os dados para o DataFrame do Excel.
